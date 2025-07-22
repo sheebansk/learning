@@ -5,111 +5,71 @@ define([
   "ecm/widget/viewer/ContentViewer"
 ], function (aspect, Desktop, Item, ContentViewer) {
 
-  console.log("✅ Custom viewer navigation plugin loaded");
-
-  // 👉 Your static document list with metadata
   var documents = {
-    repositoryId: "name1",
-    documents: ["{1}", "{2}"], // First doc: index 0
-    classId: "class",
-    vsId: "vs",
+    repositoryId: "Repo1",
+    documents: ["{doc1}", "{doc2}"],
+    classId: "Document",
+    vsId: "VS_ID_123",
     version: "current",
-    templateId: "CustomTemplate" // Optional
+    templateId: null
   };
 
   var currentIndex = 0;
-  var viewerInitialized = false;
 
-  function openDocumentAt(index, viewerInstance) {
-    if (!documents.documents || documents.documents.length === 0) {
-      console.warn("⚠️ No documents provided");
-      return;
-    }
+  function openDocument(index) {
+    var docId = documents.documents[index];
+    var repository = Desktop.getRepository(documents.repositoryId);
 
-    const docId = documents.documents[index];
-    const repository = Desktop.getRepository(documents.repositoryId);
+    if (!docId || !repository) return;
 
-    if (!docId || !repository) {
-      console.warn("⚠️ Invalid document ID or repository");
-      return;
-    }
-
-    console.log("📄 Opening document at index", index, docId);
-
-    const doc = new Item({
+    var item = new Item({
       repository: repository,
       id: docId,
-      vsId: documents.vsId,
       className: documents.classId,
-      versionSeriesId: documents.vsId,
+      vsId: documents.vsId,
       version: documents.version,
-      template: documents.templateId || null
+      template: documents.templateId
     });
 
-    if (viewerInstance.setItem && typeof viewerInstance.setItem === "function") {
-      viewerInstance.setItem(doc);
+    var viewerPane = Desktop.getViewerContainer()?.getSelectedViewer?.();
+    if (viewerPane && viewerPane.openContentItem) {
+      console.log("✅ Opening document:", docId);
+      viewerPane.openContentItem(item);
     } else {
-      console.error("❌ viewerInstance.setItem is not available or not a function");
+      console.error("❌ Could not find viewerPane or openContentItem");
     }
-
-    updateNavigationButtons(viewerInstance);
   }
 
-  function updateNavigationButtons(viewerInstance) {
-    if (!viewerInstance || !viewerInstance._toolbar) return;
+  function overrideNavigationButtons() {
+    console.log("🔧 Overriding ContentViewer navigation methods");
 
-    const prevBtn = viewerInstance._toolbar.lookup("Previous");
-    const nextBtn = viewerInstance._toolbar.lookup("Next");
-
-    if (prevBtn) prevBtn.set("disabled", currentIndex === 0);
-    if (nextBtn) nextBtn.set("disabled", currentIndex >= documents.documents.length - 1);
-
-    console.log(
-      `🔘 Updated buttons - Previous: ${currentIndex === 0 ? "Disabled" : "Enabled"}, Next: ${
-        currentIndex >= documents.documents.length - 1 ? "Disabled" : "Enabled"
-      }`
-    );
-  }
-
-  function overrideContentViewerNavigation() {
-    console.log("🔧 Overriding ContentViewer.onNext and onPrevious");
-
-    // Override the viewer's navigation
     ContentViewer.prototype.onNext = function () {
       if (currentIndex < documents.documents.length - 1) {
         currentIndex++;
-        openDocumentAt(currentIndex, this);
+        openDocument(currentIndex);
       } else {
         console.log("ℹ️ Already at last document");
-        updateNavigationButtons(this);
       }
     };
 
     ContentViewer.prototype.onPrevious = function () {
       if (currentIndex > 0) {
         currentIndex--;
-        openDocumentAt(currentIndex, this);
+        openDocument(currentIndex);
       } else {
         console.log("ℹ️ Already at first document");
-        updateNavigationButtons(this);
       }
     };
 
-    // Automatically open the first document when the viewer is created
     aspect.after(ContentViewer.prototype, "postCreate", function () {
-      if (!viewerInitialized && documents.documents.length > 0) {
-        console.log("📂 ContentViewer created — auto-opening first document");
-        viewerInitialized = true;
-        currentIndex = 0;
-        openDocumentAt(currentIndex, this);
-      }
+      console.log("📂 Viewer created – auto opening first document");
+      openDocument(currentIndex);
     });
   }
 
-  // Register overrides after the desktop is loaded
   aspect.after(Desktop, "onDesktopLoaded", function () {
-    console.log("🖥️ Desktop loaded — applying ContentViewer overrides");
-    overrideContentViewerNavigation();
+    console.log("🖥️ Desktop loaded – applying ContentViewer overrides");
+    overrideNavigationButtons();
   });
 
 });
