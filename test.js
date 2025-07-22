@@ -1,40 +1,38 @@
 define([
   "dojo/aspect",
   "ecm/model/Desktop",
-  "ecm/widget/layout/CommonActionsHandler"
-], function(aspect, Desktop, CommonActionsHandler) {
+  "ecm/widget/viewer/ContentViewer"
+], function(aspect, Desktop, ContentViewer) {
 
-  console.log("✅ Plugin loaded: full override for onNext/onPrevious");
+  console.log("✅ CustomViewerPlugin.js loaded");
 
-  function customNext(repository, items, callback, teamspace, resultSet, parameterMap) {
-    console.log("🔴 Custom onNext triggered", { repository, items, resultSet });
-    // Your custom full logic here
-    // For example, call callback when done or handle paging your own way
-    if (callback) callback();
+  function customViewerOnNext() {
+    console.log("🔴 Custom ContentViewer: onNext triggered");
+    // ➕ Insert your full custom logic here
   }
 
-  function customPrevious(repository, items, callback, teamspace, resultSet, parameterMap) {
-    console.log("🔴 Custom onPrevious triggered", { repository, items, resultSet });
-    // Your custom full logic here
-    if (callback) callback();
+  function customViewerOnPrevious() {
+    console.log("🔴 Custom ContentViewer: onPrevious triggered");
+    // ➕ Insert your full custom logic here
   }
 
-  function overrideCommonActionsHandler() {
-    console.log("🔧 Overriding CommonActionsHandler.onNext and onPrevious");
+  function overrideContentViewerOnNextPrevious() {
+    console.log("🔧 Overriding ContentViewer.onNext and onPrevious");
 
-    // Replace onNext
-    CommonActionsHandler.prototype.onNext = function(repository, items, callback, teamspace, resultSet, parameterMap) {
-      return customNext(repository, items, callback, teamspace, resultSet, parameterMap);
+    ContentViewer.prototype.onNext = function() {
+      customViewerOnNext();
+      // 🔕 Don't call original method if full override
     };
 
-    // Replace onPrevious
-    CommonActionsHandler.prototype.onPrevious = function(repository, items, callback, teamspace, resultSet, parameterMap) {
-      return customPrevious(repository, items, callback, teamspace, resultSet, parameterMap);
+    ContentViewer.prototype.onPrevious = function() {
+      customViewerOnPrevious();
     };
   }
 
+  // Run this once the ICN Desktop is fully initialized
   aspect.after(Desktop, "onDesktopLoaded", function() {
-    overrideCommonActionsHandler();
+    console.log("🖥️ Desktop fully loaded – applying ContentViewer onNext/onPrevious override");
+    overrideContentViewerOnNextPrevious();
   });
 
 });
