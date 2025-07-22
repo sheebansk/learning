@@ -1,45 +1,40 @@
 define([
-  "dojo/_base/declare",
-  "dojo/_base/lang",
   "dojo/aspect",
   "ecm/model/Desktop",
   "ecm/widget/layout/CommonActionsHandler"
-], function(declare, lang, aspect, Desktop, CommonActionsHandler) {
+], function(aspect, Desktop, CommonActionsHandler) {
 
-  function customNextHandler(context) {
-    console.log("CustomEventPlugin - Custom NEXT action triggered", context);
-    // ➕ Insert your custom logic here
+  console.log("✅ Plugin loaded: full override for onNext/onPrevious");
+
+  function customNext(repository, items, callback, teamspace, resultSet, parameterMap) {
+    console.log("🔴 Custom onNext triggered", { repository, items, resultSet });
+    // Your custom full logic here
+    // For example, call callback when done or handle paging your own way
+    if (callback) callback();
   }
 
-  function customPreviousHandler(context) {
-    console.log("CustomEventPlugin - Custom PREVIOUS action triggered", context);
-    // ➕ Insert your custom logic here
+  function customPrevious(repository, items, callback, teamspace, resultSet, parameterMap) {
+    console.log("🔴 Custom onPrevious triggered", { repository, items, resultSet });
+    // Your custom full logic here
+    if (callback) callback();
   }
 
-  function registerToolbarOverrides() {
-    console.log("CustomEventPlugin - Registering toolbar overrides for CommonActionsHandler");
+  function overrideCommonActionsHandler() {
+    console.log("🔧 Overriding CommonActionsHandler.onNext and onPrevious");
 
-    // Override the Next button
-    aspect.around(CommonActionsHandler.prototype, "onNext", function(originalMethod) {
-      return function(repository, items, callback, teamspace, resultSet, parameterMap) {
-        customNextHandler({ repository, items, resultSet });
-        return originalMethod.apply(this, arguments); // Preserve default behavior
-      };
-    });
+    // Replace onNext
+    CommonActionsHandler.prototype.onNext = function(repository, items, callback, teamspace, resultSet, parameterMap) {
+      return customNext(repository, items, callback, teamspace, resultSet, parameterMap);
+    };
 
-    // Override the Previous button
-    aspect.around(CommonActionsHandler.prototype, "onPrevious", function(originalMethod) {
-      return function(repository, items, callback, teamspace, resultSet, parameterMap) {
-        customPreviousHandler({ repository, items, resultSet });
-        return originalMethod.apply(this, arguments);
-      };
-    });
+    // Replace onPrevious
+    CommonActionsHandler.prototype.onPrevious = function(repository, items, callback, teamspace, resultSet, parameterMap) {
+      return customPrevious(repository, items, callback, teamspace, resultSet, parameterMap);
+    };
   }
 
-  // Wait until the desktop is loaded before patching
   aspect.after(Desktop, "onDesktopLoaded", function() {
-    console.log("CustomEventPlugin: Desktop loaded");
-    registerToolbarOverrides();
+    overrideCommonActionsHandler();
   });
 
 });
