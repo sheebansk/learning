@@ -1,18 +1,19 @@
 define([
   "dojo/_base/array",
+  "dojo/_base/lang",
   "ecm/model/Desktop",
-  "ecm/model/Item",
-  "ecm/widget/viewer/ContentViewerPane"
-], function (array, Desktop, Item, ContentViewerPane) {
+  "ecm/model/Item"
+], function (array, lang, Desktop, Item) {
 
-  console.log("📄 Plugin: Opening document in ContentViewerPane");
-
-  var repository = Desktop.getRepository("Repo1"); // Replace with actual repo ID
+  console.log("📦 Custom plugin loaded for viewer.jsp navigation");
 
   var documents = ["{doc1}", "{doc2}", "{doc3}"];
   var classId = "Document";
+  var repositoryId = "Repo1";
   var vsId = "VS_ID_123";
   var version = "current";
+
+  var repository = Desktop.getRepository(repositoryId);
 
   var items = array.map(documents, function (id) {
     return new Item({
@@ -27,17 +28,40 @@ define([
 
   var currentItem = items[0];
 
-  var viewerTab = Desktop.mainContainer?.getSelectedTab?.();
-  if (!viewerTab || typeof viewerTab.openContentItem !== "function") {
-    console.error("❌ Cannot access viewer tab or openContentItem");
-    return;
+  function getViewerTab() {
+    if (Desktop.mainContainer?.getSelectedTab) {
+      return Desktop.mainContainer.getSelectedTab();
+    }
+    if (Desktop.mainContentArea?.getSelectedTab) {
+      return Desktop.mainContentArea.getSelectedTab();
+    }
+    return null;
   }
 
-  console.log("📂 Opening first document in existing viewer tab");
+  function tryOpenViewerDocument(retries) {
+    var viewerTab = getViewerTab();
 
-  viewerTab.openContentItem(currentItem, {
-    items: items, // full list for navigation
-    repository: repository
-  });
+    if (viewerTab && typeof viewerTab.openContentItem === "function") {
+      console.log("✅ Viewer tab ready. Opening first document.");
+
+      viewerTab.openContentItem(currentItem, {
+        items: items,
+        repository: repository
+      });
+    } else if (retries > 0) {
+      console.log("⏳ Waiting for viewer tab...");
+      setTimeout(function () {
+        tryOpenViewerDocument(retries - 1);
+      }, 500);
+    } else {
+      console.error("❌ Viewer tab not available after retries.");
+    }
+  }
+
+  // Wait until Desktop is ready, then attempt viewer tab access
+  Desktop.onDesktopLoaded = function () {
+    console.log("🖥️ Desktop loaded - trying to open viewer");
+    tryOpenViewerDocument(10); // Retry 10 times
+  };
 
 });
