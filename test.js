@@ -1,43 +1,49 @@
-define([
-  "dojo/_base/declare",
-  "ecm/widget/viewer/ContentViewer",
+require([
+  "dijit/registry",
   "ecm/model/Repository",
   "ecm/model/ContentItem",
   "dojo/_base/lang"
-], function(declare, ContentViewer, Repository, ContentItem, lang) {
+], function(registry, Repository, ContentItem, lang) {
+  
+  var viewer = registry.byId("contentViewerPane");
+  if (!viewer) {
+    console.error("❌ contentViewerPane not found");
+    return;
+  }
 
-  return declare("myplugin.CustomViewer", [ContentViewer], {
+  // Read URL parameters
+  var params = new URLSearchParams(window.location.search);
+  var repositoryId = params.get("repositoryId");
+  var docid = params.get("docid");
+  var vsId = params.get("vsId");
 
-    postCreate: function() {
-      this.inherited(arguments);
+  if (!repositoryId || !docid) {
+    console.warn("Missing repositoryId or docid in URL");
+    return;
+  }
 
-      var urlParams = new URLSearchParams(window.location.search);
-      var repositoryId = urlParams.get("repositoryId");
-      var docId = urlParams.get("docid");
-      var vsId = urlParams.get("vsId");
+  var repository = ecm.model.desktop.getRepository(repositoryId);
 
-      if (repositoryId && docId) {
-        var repository = ecm.model.desktop.getRepository(repositoryId);
+  function loadItem() {
+    var item = new ContentItem({
+      repository: repository,
+      id: docid,
+      vsId: vsId || null,
+      retrieveItem: true
+    });
 
-        if (!repository.connected) {
-          repository.retrieveDesktop(lang.hitch(this, function() {
-            this._loadItem(repository, docId, vsId);
-          }));
-        } else {
-          this._loadItem(repository, docId, vsId);
-        }
-      }
-    },
+    console.log("✅ Setting item on viewer");
+    viewer.setItem(item);
+  }
 
-    _loadItem: function(repository, docId, vsId) {
-      var item = new ContentItem({
-        repository: repository,
-        id: docId,
-        vsId: vsId || null,
-        retrieveItem: true
-      });
+  // Check if repository is connected
+  if (!repository || !repository.connected) {
+    repository.retrieveDesktop(lang.hitch(this, function() {
+      console.log("🔁 Repository connected");
+      loadItem();
+    }));
+  } else {
+    loadItem();
+  }
 
-      this.setItem(item);
-    }
-  });
 });
