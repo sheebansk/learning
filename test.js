@@ -1,67 +1,43 @@
 define([
-  "dojo/_base/array",
-  "dojo/_base/lang",
-  "ecm/model/Desktop",
-  "ecm/model/Item"
-], function (array, lang, Desktop, Item) {
+  "dojo/_base/declare",
+  "ecm/widget/viewer/ContentViewer",
+  "ecm/model/Repository",
+  "ecm/model/ContentItem",
+  "dojo/_base/lang"
+], function(declare, ContentViewer, Repository, ContentItem, lang) {
 
-  console.log("📦 Custom plugin loaded for viewer.jsp navigation");
+  return declare("myplugin.CustomViewer", [ContentViewer], {
 
-  var documents = ["{doc1}", "{doc2}", "{doc3}"];
-  var classId = "Document";
-  var repositoryId = "Repo1";
-  var vsId = "VS_ID_123";
-  var version = "current";
+    postCreate: function() {
+      this.inherited(arguments);
 
-  var repository = Desktop.getRepository(repositoryId);
+      var urlParams = new URLSearchParams(window.location.search);
+      var repositoryId = urlParams.get("repositoryId");
+      var docId = urlParams.get("docid");
+      var vsId = urlParams.get("vsId");
 
-  var items = array.map(documents, function (id) {
-    return new Item({
-      repository: repository,
-      id: id,
-      vsId: vsId,
-      className: classId,
-      versionSeriesId: vsId,
-      version: version
-    });
-  });
+      if (repositoryId && docId) {
+        var repository = ecm.model.desktop.getRepository(repositoryId);
 
-  var currentItem = items[0];
+        if (!repository.connected) {
+          repository.retrieveDesktop(lang.hitch(this, function() {
+            this._loadItem(repository, docId, vsId);
+          }));
+        } else {
+          this._loadItem(repository, docId, vsId);
+        }
+      }
+    },
 
-  function getViewerTab() {
-    if (Desktop.mainContainer?.getSelectedTab) {
-      return Desktop.mainContainer.getSelectedTab();
-    }
-    if (Desktop.mainContentArea?.getSelectedTab) {
-      return Desktop.mainContentArea.getSelectedTab();
-    }
-    return null;
-  }
-
-  function tryOpenViewerDocument(retries) {
-    var viewerTab = getViewerTab();
-
-    if (viewerTab && typeof viewerTab.openContentItem === "function") {
-      console.log("✅ Viewer tab ready. Opening first document.");
-
-      viewerTab.openContentItem(currentItem, {
-        items: items,
-        repository: repository
+    _loadItem: function(repository, docId, vsId) {
+      var item = new ContentItem({
+        repository: repository,
+        id: docId,
+        vsId: vsId || null,
+        retrieveItem: true
       });
-    } else if (retries > 0) {
-      console.log("⏳ Waiting for viewer tab...");
-      setTimeout(function () {
-        tryOpenViewerDocument(retries - 1);
-      }, 500);
-    } else {
-      console.error("❌ Viewer tab not available after retries.");
+
+      this.setItem(item);
     }
-  }
-
-  // Wait until Desktop is ready, then attempt viewer tab access
-  Desktop.onDesktopLoaded = function () {
-    console.log("🖥️ Desktop loaded - trying to open viewer");
-    tryOpenViewerDocument(10); // Retry 10 times
-  };
-
+  });
 });
